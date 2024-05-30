@@ -1,0 +1,4 @@
+falta fazer:
+tf
+torch
+scikit-image
