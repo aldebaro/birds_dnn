@@ -18,9 +18,9 @@ C:\github\birds_dnn\train_audio
 # Executing code
 
 From src folder, you can use:
-``
+```
  python .\listen_and_see.py --should_plot --features=stft --normalization_method=minmax
- ``
+ ```
  to listen to the files and also plot images with spectrogram or similar features.
 
 # To do list
