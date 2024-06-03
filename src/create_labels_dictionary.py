@@ -107,8 +107,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '--input_folder', help='input folder with audio files', default='..\\train_audio')
     parser.add_argument(
-        '--output_folder', help='input folder with audio files', default='../besta')
+        '--output_folder', help='input folder with audio files', default='../outputs')
     # parser.add_argument('--Dmin',type=int,help='First index of chosen frequency range. Default is 0, the first in input file',default=0)
+    parser.add_argument('--label_file', help='CSV label file', default='../txt/train_metadata.csv')
+         
 
     args = parser.parse_args()
 
@@ -125,5 +127,4 @@ if __name__ == '__main__':
 
     # check_sampling_frequency_and_duration(args.input_folder, extension='ogg')
 
-    label_file = '../train_metadata.csv'
-    check_labels(label_file, args.input_folder)
+    check_labels(args.label_file, args.input_folder)

@@ -107,7 +107,7 @@ if __name__ == '__main__':
         print("ERROR!")
         print("Usage: input_wav_folder output_folder")
         print("Example:")
-        print(r"python create_label_file.py ../wav ../output/")
+        print(r"python create_label_file.py ../train_audio ../outputs/")
         exit(1)
     input_folder = sys.argv[1]
     output_folder = sys.argv[2]

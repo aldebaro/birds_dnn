@@ -19,44 +19,137 @@ import pickle
 # routines for feature extraction
 from utils_frontend import *
 
+def get_features_filename(input_filename):
+    folder_with_label_name, file_id, basename = parse_filename(input_filename)
+    this_folder = os.path.join(features_folder, folder_with_label_name)
+    if not os.path.exists(this_folder):
+        # create folder if it does not exist
+        os.makedirs(this_folder, exist_ok=True)
+        print("Created folder", this_folder)
+    base_file, ext = os.path.splitext(basename)
+    output_file = os.path.join(this_folder, base_file + "_fea.hdf5")
+    return output_file
+
+def parse_filename(filename):
+        '''
+        Assumes a full filename such as
+        C:\github\birds_dnn\train_audio\asbfly\XC134896.ogg
+        '''
+        folders = filename.split(os.sep)
+        # same as in file train_metadata.csv
+        file_id = folders[-2] + '/' + folders[-1]
+        folder_with_label_name = folders[-2]  # find the label
+        basename = folders[-1]
+        return folder_with_label_name, file_id, basename
+
+
+def calculate_features(wave_file, should_plot=True, features='stft', normalization_method="none"):
+    '''
+    Calculate features and write to a file.
+    '''
+    # print("Processing {}...".format(wave_file))
+    audio, Fs = librosa.load(wave_file)
+    #print(type(features), features.__class__)
+    if True:
+        if features == 'magnasco':
+            spectrogram = magnasco_spectrogram(audio)
+        elif features == 'stft':
+            spectrogram = stft_spectrogram(audio)
+        elif features == 'mel':
+            num_mel_filters = 300
+            spectrogram = melspectrogram(
+                audio, n_mels=num_mel_filters)
+        else:
+            raise Exception("Invalid features: " + features)
+
+        top_db = 100  # floor value in dB below the maximum
+        spectrogram = librosa.amplitude_to_db(
+            spectrogram, ref=np.max, top_db=top_db)
+
+        print("Shape of the features = ", spectrogram.shape)
+
+        if normalization_method != "none":
+            if normalization_method == "maggie":
+                spectrogram = normalize_as_maggie(spectrogram)
+            if normalization_method == "minmax":
+                spectrogram = normalize_to_min_max(spectrogram)
+            if normalization_method == "std_freq":
+                spectrogram = normalize_standardize_along_frequency(
+                    spectrogram)
+
+        if should_plot:
+            # AK: TODO the x and y-axis are not
+            # valid for mel and Magnasco, because the use log scale
+            # in frequency and another time interval in time axis
+            fig, axs = plt.subplots(3, 1)
+            plt.tight_layout()
+
+            # specify the sampling frequency below:
+            img = librosa.display.specshow(
+                spectrogram, sr=Fs, x_axis='time', y_axis='linear', ax=axs[0])
+            axs[0].set(title='Feature = ' + features)
+            fig.colorbar(img, ax=axs[0], format="%+2.f dB")
+            # plot_feature(spectrogram, "Features " + features)
+            # plt.colorbar()
+
+            # Time domain waveform plot
+            axs[1].plot(np.arange(len(audio))/Fs, audio)
+            axs[1].set(  # title='Time Domain Waveform',
+                # xlabel='Time (s)',
+                ylabel='Amplitude')
+            fig.colorbar(img, ax=axs[1], format="%+2.f dB")
+
+            # Energy plot
+            energy = 10.0*np.log10(audio**2 + 1e-30)
+            energy[energy < -top_db] = -top_db
+            axs[2].plot(np.arange(len(audio))/Fs, energy)
+            axs[2].set(  # title='Energy',
+                xlabel='Time (s)', ylabel='Energy (dB)')
+            # Create colorbar
+            mappable = plt.cm.ScalarMappable(cmap='viridis')
+            mappable.set_array(energy)
+
+            plt.colorbar(mappable, ax=axs[2],
+                         orientation='vertical', label='Energy')
+
+        # Play the audio file
+        # sd.play(audio, Fs)
+
+        # show before playing the song
+        if should_plot:
+            plt.show()
+
+        # Use this to pause until the file is done playing
+        #sd.wait()
+
+    return spectrogram
+
 if __name__ == '__main__':
 
     list_of_features = ["magnasco", "stft", "mel"]
     list_of_normalizers = ["minmax", "maggie", "std_freq", "none"]
-    max_freq = 4000  # in Hz, for STFT and Mel features
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--wav_dir', help='input folder with wav files', default='../wav')
-    parser.add_argument(
-        '--general_dir', help='folder with wavs_labels.csv and labels_dictionary.json files', default='../general')
-    parser.add_argument(
-        '--output_file', help='output file for saving time-freq representation')
+        '--general_dir', help='folder with wavs_labels.csv and labels_dictionary.json files', default='../outputs')
     parser.add_argument('--features', help='choose the features to be extracted',
-                        choices=list_of_features, default="magnasco")
+                        choices=list_of_features, default="mel")
     parser.add_argument('--normalization', help='choose normalization method',
-                        choices=list_of_normalizers, default="minmax")
+                        choices=list_of_normalizers, default="none")
     # default is false
     parser.add_argument('--log_domain', action='store_true')
     # default is false
-    parser.add_argument('--save_plots', action='store_true')
     parser.add_argument('--show_plot', action='store_true')  # default is false
     # required arguments
-    parser.add_argument(
-        '--D', help='number of frequency points', required=True)
-    parser.add_argument('--T', help='number of time points', required=True)
     parser.add_argument('--output_dir', help='output folder', required=True)
     args = parser.parse_args()
 
     convert_to_log_domain = args.log_domain
-    save_plots = args.save_plots
     normalization_method = args.normalization
     show_plot = args.show_plot  # plot spectrograms
     general_folder = args.general_dir
 
-    D = int(args.D)
-    T = int(args.T)
-    wav_folder = args.wav_dir
+    #wav_folder = args.wav_dir
     features = args.features
     # label_file = args.label_file
     output_folder = args.output_dir
@@ -65,32 +158,12 @@ if __name__ == '__main__':
         os.makedirs(output_folder, exist_ok=True)
         print("Created output folder", output_folder)
 
-    if args.output_file == None:
-        # create a default name
-        output_file = os.path.join(
-            output_folder, "features_" + features + "D" + str(D) + "T" + str(T) + ".hdf5")
-    else:
-        output_file = args.output_file
-
-    features_folder = os.path.join(os.path.splitext(output_file)[
-                                   0], "features_no_resizing")
-    # create folder if it does not exist
-    os.makedirs(features_folder, exist_ok=True)
-
-    if save_plots:
-        plots_output_folder = os.path.join(output_folder, "/pngs_")
-        plots_output_folder = os.path.join(
-            output_folder, os.path.basename(output_file))
-        plots_output_folder = os.path.splitext(plots_output_folder)[0]
+    features_folder = os.path.join(output_folder, features)
+    if not os.path.exists(features_folder):
         # create folder if it does not exist
-        os.makedirs(plots_output_folder, exist_ok=True)
-        print("Created output folder for plots in png format", plots_output_folder)
-
-    if os.path.exists(output_file):
-        print("ERROR: ", output_file, "already exists!")
-        print("Delete this file or choose another name with command line parameter --output_file")
-        exit(-1)
-
+        os.makedirs(features_folder, exist_ok=True)
+        print("Created features folder", features_folder)
+    
     # save this script in the output folder for reproducibility
     # if os.name == 'nt':
     #    command = "copy " + label_file + " " + output_folder
@@ -119,157 +192,35 @@ if __name__ == '__main__':
     # https://appdividend.com/2022/01/29/how-to-convert-python-string-to-dictionary/
     label_dict = json.loads(label_dict_str)
 
-    # initialize and pre-allocate space
-    # X = np.zeros((num_examples, D, T))
-    X = np.zeros((num_examples, T, D))  # note I am using the transpose
     list_all_labels = []  # initialize list
 
-    min_freq_dimension = 1e30
     min_time_dimension = 1e30
-    max_freq_dimension = -1e30
     max_time_dimension = -1e30
     for i, row in df.iterrows():
-        wavfile_basename = row['filename']
-        wavfile = os.path.join(wav_folder, wavfile_basename)
-        # samplerate, audio = read(wavfile)
-        audio, samplerate = librosa.load(wavfile)  # x is a numpy array
+        wavfile = row['filename']
 
-        if False:  # enable for testing with simple signal of increasing frequency
-            audio = librosa.chirp(sr=samplerate, fmin=110,
-                                  fmax=22050, duration=1, linear=True)
+        X_features = calculate_features(wavfile, should_plot=show_plot,
+                                      features=features, normalization_method=normalization_method)
 
-        # now we can have files with Fs = 8 kHz, so disable the check below
-        # if samplerate != 44100:
-        #    raise Exception('Sample rate must be 44.1 kHz, but we found' + str(samplerate))
-        if features == 'magnasco':
-            spectrogram = magnasco_spectrogram(audio)
-        elif features == 'stft':
-            spectrogram = stft_spectrogram(audio, max_freq=max_freq)
-        elif features == 'mel':
-            spectrogram = melspectrogram(audio, max_freq=max_freq, n_mels=D)
-
-        this_D, this_T = spectrogram.shape
-        if this_D > max_freq_dimension:
-            max_freq_dimension = this_D
-        if this_T > max_time_dimension:
-            max_time_dimension = this_T
-        if this_D < min_freq_dimension:
-            min_freq_dimension = this_D
-        if this_T < min_time_dimension:
-            min_time_dimension = this_T
-
-        if show_plot:
-            print("Dimensions = ", spectrogram.shape)
-            print("Range = ", np.min(spectrogram), np.max(spectrogram))
-            plot_feature(spectrogram, "Initial features. " + features)
-        if save_plots:
-            if not show_plot:
-                plot_feature_no_show(
-                    spectrogram, "Initial features. " + features)
-            plots_folder = os.path.join(plots_output_folder, "initial")
-            # create folder if it does not exist
-            os.makedirs(plots_folder, exist_ok=True)
-            this_file_name = os.path.splitext(wavfile_basename)[0]
-            this_file_name = os.path.join(
-                plots_folder, this_file_name + ".png")
-            plt.savefig(this_file_name)
-
-        if convert_to_log_domain:
-            top_db = 60  # floor value in dB below the maximum
-            spectrogram = librosa.amplitude_to_db(
-                spectrogram, ref=np.max, top_db=top_db)
-            if show_plot:
-                print("Range in log = ", np.min(
-                    spectrogram), np.max(spectrogram))
-                print("Shape of features = ", spectrogram.shape)
-                plot_feature(
-                    spectrogram, "Features in log domain. " + features)
-            if save_plots:
-                if not show_plot:
-                    plot_feature_no_show(
-                        spectrogram, "Features in log domain. " + features)
-                plots_folder = os.path.join(plots_output_folder, "logdomain")
-                # create folder if it does not exist
-                os.makedirs(plots_folder, exist_ok=True)
-                this_file_name = os.path.splitext(wavfile_basename)[0]
-                this_file_name = os.path.join(
-                    plots_folder, this_file_name + ".png")
-                plt.savefig(this_file_name)
-        if normalization_method != "none":
-            if normalization_method == "maggie":
-                spectrogram = normalize_as_maggie(spectrogram)
-            if normalization_method == "minmax":
-                spectrogram = normalize_to_min_max(spectrogram)
-            if normalization_method == "std_freq":
-                spectrogram = normalize_standardize_along_frequency(
-                    spectrogram)
-            if show_plot:
-                print("Range after normalization = ", np.min(
-                    spectrogram), np.max(spectrogram))
-                print("Shape of features = ", spectrogram.shape)
-                plot_feature(spectrogram, "Normalized features. " +
-                             features + " " + normalization_method)
-            if save_plots:
-                if not show_plot:
-                    plot_feature_no_show(
-                        spectrogram, "Normalized features. " + features)
-                plots_folder = os.path.join(plots_output_folder, "normalized")
-                # create folder if it does not exist
-                os.makedirs(plots_folder, exist_ok=True)
-                this_file_name = os.path.splitext(wavfile_basename)[0]
-                this_file_name = os.path.join(
-                    plots_folder, this_file_name + ".png")
-                plt.savefig(this_file_name)
-
-        # before resizing, save features in individual files:
-        output_features_before_resizing = os.path.join(features_folder,
-                                                       os.path.splitext(wavfile_basename)[0] + "_fea.pkl")
-        # save file
-        # https://stackoverflow.com/questions/10592605/save-classifier-to-disk-in-scikit-learn
-        with open(output_features_before_resizing, 'wb') as fid:
-            pickle.dump(spectrogram, fid)
-
-        S_db = resize(spectrogram, (D, T),
-                      preserve_range=True, anti_aliasing=False)
-        if show_plot:
-            print("Shape of features = ", S_db.shape)
-            print("Range after resizing = ", np.min(S_db), np.max(S_db))
-            plot_feature(S_db, "Resized final features. " +
-                         features + " " + normalization_method)
-        if save_plots:
-            if not show_plot:
-                plot_feature_no_show(
-                    S_db, "Resized final features. " + features)
-            plots_folder = os.path.join(plots_output_folder, "final")
-            # create folder if it does not exist
-            os.makedirs(plots_folder, exist_ok=True)
-            this_file_name = os.path.splitext(wavfile_basename)[0]
-            this_file_name = os.path.join(
-                plots_folder, this_file_name + ".png")
-            plt.savefig(this_file_name)
-        X[i] = S_db.T  # use transpose because this is the expected by the neural nets
         # column annotation indicates the labels
         label = str(row['annotation']).strip()
         list_all_labels.append(label)
 
+        # now create the label index (not the string)
+        label_index_y = label_dict[label]
+
+        output_file = get_features_filename(wavfile)
+        write_instances_to_file(output_file, X_features, label_index_y)
+
         print(label, "from", os.path.basename(wavfile),
-              "converted to", output_features_before_resizing)
-
-    # now create the y array with label indices (not the strings)
-    y = np.zeros((num_examples), dtype=int)
-    for i in range(num_examples):
-        this_label = list_all_labels[i]
-        label_index = label_dict[this_label]
-        y[i] = label_index
-
-    write_instances_to_file(output_file, X, y)
-    print("Wrote file", output_file)
-    if False:  # if wants to double check
-        print('y1', y)
-        X, y = read_instances_from_file(output_file)
-        print('y2', y)
+        "converted to", output_file)
+        print("Wrote file", output_file)
+        if False:  # if wants to double check
+            print("X", X_features)
+            print('y1', label_index_y)
+            X, label_index_y = read_instances_from_file(output_file)
+            print("X", X)
+            print('y2', label_index_y)
 
     print("Considering original features")
-    print("Frequency dimension range = ",
-          min_freq_dimension, max_freq_dimension)
     print("Time dimension range = ", min_time_dimension, max_time_dimension)

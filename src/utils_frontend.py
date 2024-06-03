@@ -23,12 +23,11 @@ import reassignment.reassignment_linear as reassign_lin
 from sklearn.preprocessing import MinMaxScaler
 
 # Part 1) File manipulation
-'''
-Read X and y from HDF5 file.
-'''
-
 
 def read_instances_from_file(intputHDF5FileName):
+    '''
+    Read X and y from HDF5 file.
+    '''
     h5pyFile = h5py.File(intputHDF5FileName, 'r')
     Xtemp = h5pyFile["X"]
     ytemp = h5pyFile["y"]
@@ -37,13 +36,10 @@ def read_instances_from_file(intputHDF5FileName):
     h5pyFile.close()
     return X, y
 
-
-'''
-Write X and y to HDF5 file.
-'''
-
-
 def write_instances_to_file(outputHDF5FileName, X, y):
+    '''
+    Write X and y to HDF5 file.
+    '''
     h5pyFile = h5py.File(outputHDF5FileName, 'w')
     h5pyFile["X"] = X  # store in hdf5
     h5pyFile["y"] = y  # store in hdf5
@@ -51,7 +47,6 @@ def write_instances_to_file(outputHDF5FileName, X, y):
     # print('==> Wrote file ', outputHDF5FileName, ' with keys X and y')
 
 # Part 2) Time-frequency feature extraction algorithms
-
 
 def magnasco_spectrogram(audio):
     '''
