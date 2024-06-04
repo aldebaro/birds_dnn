@@ -22,7 +22,65 @@ import reassignment.reassignment_linear as reassign_lin
 # from sklearn.preprocessing import scale
 from sklearn.preprocessing import MinMaxScaler
 
+MAX_DURATION = 300
+
+
+def load_data(path):
+    # Load data
+    path = os.path.normpath(path)
+    X, y = [], []
+    i = 0
+    for label, subfolder in enumerate(os.listdir(path)):
+        full_path = os.path.join(path, subfolder)
+        if not os.path.isdir(full_path):
+            continue  # skip files, to process only folders
+        for file in os.listdir(full_path):
+            file_path = os.path.join(full_path, file)
+            spectrogram, label_index_y = read_instances_from_file(file_path)
+            # spectrogram = np.load(file_path)  # assuming .npy format
+            # AK TODO this is not elegant but will convert from np.array
+            # to list, because Keras pad_sequences seems to require list
+            X.append(spectrogram)
+            y.append(label_index_y)
+            print(i, file_path, "shape=", spectrogram.shape)
+            i += 1
+        # if i > 5:
+        #    break
+    # Assuming `sequences` is your list of lists or arrays
+    # print("len(X)", len(X))
+    # print("X=", X)
+    # from https://www.kaggle.com/code/rhythmcam/keras-basic-pad-sequences-usage
+
+    # TODO find a sensible value instead of -2
+    X = pad_sequence_of_matrices(X, 100, -2)
+    # X = pad_sequences(X, maxlen=100, value=-2, padding='post')
+    return X, np.array(y)
+
+
+def pad_sequence_of_matrices(X: list, desired_duration: int, value: int):
+    '''
+    X is a list of numpy arrays.
+    '''
+    num_matrices = len(X)
+    # print(X[0])
+    # print(X[0].shape)
+    dimension, duration = X[0].shape
+    X_out = value * np.ones((num_matrices, dimension, desired_duration))
+    for i in range(num_matrices):
+        thisX = X[i]
+        this_dimension, this_duration = thisX.shape
+        if this_dimension != dimension:
+            raise Exception("Dimensions should be the same",
+                            this_dimension, dimension)
+        if this_duration > desired_duration:
+            print("Warning: truncation", this_duration, desired_duration)
+            X_out[i, :, :] = thisX[:, :desired_duration]
+        else:  # padding
+            X_out[i, :, :this_duration] = thisX
+    return X_out
+
 # Part 1) File manipulation
+
 
 def read_instances_from_file(intputHDF5FileName):
     '''
@@ -36,6 +94,7 @@ def read_instances_from_file(intputHDF5FileName):
     h5pyFile.close()
     return X, y
 
+
 def write_instances_to_file(outputHDF5FileName, X, y):
     '''
     Write X and y to HDF5 file.
@@ -47,6 +106,7 @@ def write_instances_to_file(outputHDF5FileName, X, y):
     # print('==> Wrote file ', outputHDF5FileName, ' with keys X and y')
 
 # Part 2) Time-frequency feature extraction algorithms
+
 
 def magnasco_spectrogram(audio):
     '''
