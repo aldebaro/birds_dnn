@@ -25,23 +25,13 @@ From src folder, you can use:
 
  One can find more information in the file processing_steps.docx located in folder documentation.
 
-# To do list
+# About the Kaggle challenge
 
-1) Passar os datasets de audio (waveform) que tás usando (treino e teste)
+- One may have more than a bird singing in one file. But we don't know how the label file describes it
 
-2) Passar os scripts que geram espectrogramas
+- In the Kaggle challenge, one can use metadata (example: lat / long)
 
-3) Me ensinar a rodar script nos datasets de forma a gerar exatamente os dados do teu Colab 
-
-
-
-4) Só há um bird por file? Só um label por file?
-
-5) Can we use metadata (lat / long) or only the audio waveform?
-
-6) about the submission file: for each row, we print the 182 values of the output softmax layer?
-
-7) change the Colab notebook to read zip files from a LASSE nextcloud folder?
+- About the submission file: for each row, we print the 182 values of the output softmax layer
 
 # References
 
