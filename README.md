@@ -23,6 +23,8 @@ From src folder, you can use:
  ```
  to listen to the files and also plot images with spectrogram or similar features.
 
+ One can find more information in the file processing_steps.docx located in folder documentation.
+
 # To do list
 
 1) Passar os datasets de audio (waveform) que tás usando (treino e teste)
