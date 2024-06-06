@@ -24,8 +24,13 @@ from sklearn.preprocessing import MinMaxScaler
 
 MAX_DURATION = 300
 
-
-def load_data(path):
+def load_data(path, max_duration = MAX_DURATION, padding_value=0):
+    '''
+    Loads data with sequences with variable duration.
+    It truncates the long sequences to max_duration and
+    completes the short sequences with the specified
+    padding_value.
+    '''
     # Load data
     path = os.path.normpath(path)
     X, y = [], []
@@ -52,7 +57,7 @@ def load_data(path):
     # from https://www.kaggle.com/code/rhythmcam/keras-basic-pad-sequences-usage
 
     # TODO find a sensible value instead of -2
-    X = pad_sequence_of_matrices(X, 100, -2)
+    X = pad_sequence_of_matrices(X, max_duration, padding_value)
     # X = pad_sequences(X, maxlen=100, value=-2, padding='post')
     return X, np.array(y)
 

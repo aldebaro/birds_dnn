@@ -78,7 +78,7 @@ def train_classifier(clf_name, X, y, num_classes):
 
 
 def train_model(input_path, max_duration=1000):
-    X, y = load_data(input_path)
+    X, y = load_data(input_path, max_duration=max_duration)
 
     # reshape X because it is a 3D array and the classifiers
     # expect a 2D array. In other words, the data is a list
@@ -121,7 +121,7 @@ def train_model(input_path, max_duration=1000):
 
 
 if __name__ == '__main__':
-    max_duration = 100
+    max_duration = 200
     # input_path = "C:\github\birds_dnn\knowledge_features"
     input_path = "../knowledge_features"
     train_model(input_path, max_duration=max_duration)

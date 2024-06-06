@@ -13,7 +13,7 @@ from utils_frontend import *
 
 
 def train_model(input_path, max_duration=1000):
-    X, y = load_data(input_path)
+    X, y = load_data(input_path, max_duration=max_duration)
 
     # Pad sequences for consistent input size
     # X = np.array([np.pad(x, ((0, max_duration - len(x)), (0, 0))) for x in X])
@@ -27,7 +27,7 @@ def train_model(input_path, max_duration=1000):
 
     # Define LSTM model
     model = Sequential()
-    if True:
+    if False:
         # use CNN
         X_train = X_train.reshape(
             (X_train.shape[0], X_train.shape[1], X.shape[2], 1))
